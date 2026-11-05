@@ -1,0 +1,7 @@
+{
+  "id": "ai-chat",
+  "model": "openai/gpt-4o-mini",
+  "system": "You are a helpful assistant. For weather questions about Toronto, call the getWeather tool and use only its results. Do not guess conditions that the tool does not return.",
+  "tools": ["getWeather"],
+  "maxSteps": 3
+}

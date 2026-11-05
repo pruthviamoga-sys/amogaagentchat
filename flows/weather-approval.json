@@ -1,0 +1,8 @@
+{
+  "id": "weather-approval",
+  "steps": [
+    { "id": "fetch", "kind": "weather", "lat": 43.65, "lon": -79.38 },
+    { "id": "pause", "kind": "approval" },
+    { "id": "save", "kind": "sheet", "from": "fetch", "onlyIfApproved": "pause" }
+  ]
+}
