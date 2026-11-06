@@ -37,7 +37,6 @@ export async function runFlow(definition: FlowDef, city: string) {
       const decision = results[step.onlyIfApproved] as ApprovalDecision | undefined;
       if (decision?.approved !== true) {
         results[step.id] = "skipped";
-        await reportProgress(workflowRunId, step.id, "skipped");
         continue;
       }
       const weather = results[step.from] as { temperatureC: number } | undefined;
