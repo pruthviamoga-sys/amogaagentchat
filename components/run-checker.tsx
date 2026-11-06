@@ -136,7 +136,7 @@ export default function RunChecker() {
                 body: JSON.stringify({
                     messages: [
                         {
-                            id: crypto.randomUUID(),
+                            id: Math.random().toString(36).slice(2) + Date.now().toString(36),
                             role: "user",
                             parts: [{ type: "text", text: question.trim() }],
                         },
