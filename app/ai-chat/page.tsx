@@ -55,16 +55,19 @@ export default function AiChatPage() {
     useEffect(() => {
         if (status !== "error") return;
         let cancelled = false;
+        let serverWasDown = false;
         let timer: ReturnType<typeof setTimeout>;
         const check = async () => {
             try {
                 const res = await fetch("/ai-chat", { cache: "no-store" });
-                if (res.ok && !cancelled) {
-                    window.location.reload();
+                if (res.ok) {
+                    // Server is up. Reload only if it had been down.
+                    if (serverWasDown && !cancelled) window.location.reload();
                     return;
                 }
+                serverWasDown = true;
             } catch {
-                // Server is still down; try again below.
+                serverWasDown = true;
             }
             if (!cancelled) timer = setTimeout(check, 2000);
         };

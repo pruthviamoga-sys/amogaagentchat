@@ -1,4 +1,4 @@
-import { sleep, FatalError, createHook, getWorkflowMetadata } from "workflow";
+import { createHook, FatalError, getWorkflowMetadata, sleep } from "workflow";
 
 type Step =
   | { id: string; kind: "weather"; lat: number; lon: number }
@@ -13,24 +13,31 @@ type ApprovalDecision = { approved: boolean };
 export async function runFlow(definition: FlowDef, city: string) {
   "use workflow";
   const results: Record<string, unknown> = {};
-
+  const { workflowRunId } = getWorkflowMetadata();
   for (const step of definition.steps) {
+    await reportProgress(workflowRunId, step.id, "running");
+
     if (step.kind === "weather") {
       results[step.id] = await getWeather(step.lat, step.lon);
+      await reportProgress(workflowRunId, step.id, "done");
     } else if (step.kind === "wait") {
-        await sleep(step.duration as `${number}m`);
+      await sleep(step.duration as `${number}m`);
+      await reportProgress(workflowRunId, step.id, "done");
     } else if (step.kind === "approval") {
       const { workflowRunId } = getWorkflowMetadata();
       const token = `${definition.id}-${workflowRunId}-${step.id}`;
       const hook = createHook<ApprovalDecision>({ token });
+      await reportProgress(workflowRunId, step.id, "waiting");
       console.log("Waiting for approval, token:", token);
       const decision = await hook;
       console.log("Decision received:", decision);
       results[step.id] = decision;
+      await reportProgress(workflowRunId, step.id, "done");
     } else if (step.kind === "sheet") {
       const decision = results[step.onlyIfApproved] as ApprovalDecision | undefined;
       if (decision?.approved !== true) {
         results[step.id] = "skipped";
+        await reportProgress(workflowRunId, step.id, "skipped");
         continue;
       }
       const weather = results[step.from] as { temperatureC: number } | undefined;
@@ -40,6 +47,7 @@ export async function runFlow(definition: FlowDef, city: string) {
       const { workflowRunId } = getWorkflowMetadata();
       await saveToSheet(workflowRunId, city, weather.temperatureC);
       results[step.id] = "saved";
+      await reportProgress(workflowRunId, step.id, "done");
     } else {
       throw new FatalError(`Unknown step kind: ${(step as { kind: string }).kind}`);
     }
@@ -47,6 +55,12 @@ export async function runFlow(definition: FlowDef, city: string) {
 
   console.log("Flow finished:", definition.id, city, results);
   return { flow: definition.id, city, results };
+}
+
+async function reportProgress(runId: string, stepId: string, state: string) {
+  "use step";
+  const { setStepState } = await import("@/lib/progress");
+  await setStepState(runId, stepId, state);
 }
 
 async function getWeather(lat: number, lon: number) {

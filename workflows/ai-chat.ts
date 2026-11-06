@@ -1,4 +1,4 @@
-import { getWritable } from "workflow";
+import { getWorkflowMetadata, getWritable } from "workflow";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { z } from "zod";
@@ -18,8 +18,20 @@ async function fetchWeather() {
   };
 }
 
+async function reportProgress(runId: string, stepId: string, state: string) {
+  "use step";
+  const { setStepState } = await import("@/lib/progress");
+  await setStepState(runId, stepId, state);
+}
+
+// Called from inside a step, so it is a plain function, not a step.
+async function recordState(runId: string, stepId: string, state: string, detail?: string) {
+  const { setStepState } = await import("@/lib/progress");
+  await setStepState(runId, stepId, state, detail);
+}
+
 // The OpenRouter model is created inside this step, so it is never saved as a step argument.
-async function runModelStep(messages: ModelMessage[], writable: WritableStream) {
+async function runModelStep(messages: ModelMessage[], writable: WritableStream, runId: string) {
   "use step";
   const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
   const result = streamText({
@@ -30,15 +42,25 @@ async function runModelStep(messages: ModelMessage[], writable: WritableStream) 
       getWeather: {
         description: "Get the current weather in Toronto",
         inputSchema: z.object({}),
-        execute: fetchWeather,
+        execute: async () => {
+          await recordState(runId, "weather", "running");
+          const weather = await fetchWeather();
+          await recordState(runId, "weather", "done");
+          return weather;
+        },
       },
     },
     stopWhen: stepCountIs(settings.maxSteps),
   });
   await result.toUIMessageStream().pipeTo(writable);
+  const answer = await result.text;
+  await recordState(runId, "answer", "done", answer);
 }
 
 export async function aiChatWorkflow(messages: ModelMessage[]) {
   "use workflow";
-  await runModelStep(messages, getWritable());
+  const { workflowRunId } = getWorkflowMetadata();
+  await reportProgress(workflowRunId, "answer", "running");
+  await runModelStep(messages, getWritable(), workflowRunId);
+  await reportProgress(workflowRunId, "answer", "done");
 }

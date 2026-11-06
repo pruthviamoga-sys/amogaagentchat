@@ -16,6 +16,7 @@
     "@workflow/world-postgres": "^5.1.1",
     "ai": "^7.0.163",
     "next": "16.2.4",
+    "pg": "^8.23.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "workflow": "^5.4.0",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
